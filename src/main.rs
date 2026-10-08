@@ -11,7 +11,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                stream.write_all("+PONG\r\n");
+                stream.write_all(b"+PONG\r\n");
             }
             Err(e) => {
                 println!("error: {}", e);
