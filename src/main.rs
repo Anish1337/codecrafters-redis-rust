@@ -1,7 +1,8 @@
 #![allow(unused_imports)]
 use std::net::TcpListener;
-// write to TCP stream
-use std::io::Write;
+// read/write TCP stream
+use std::io::{Read, Write;};
+
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -11,9 +12,17 @@ fn main() {
         match stream {
             // mut to change stream
             Ok(mut stream) => {
-                // write_all for multiple bytes
-                // byte form
-                stream.write_all(b"+PONG\r\n");
+                let mut buffer = [0u8; 1024];
+                loop {
+                    let n = stream.read(&mut buffer).unwrap();
+                    // no data coming in
+                    if n == 0 {
+                        break; // end of stream
+                    }
+                    // write response
+                    stream.write_all(b"+PONG\r\n").unwrap();
+                }
+                println!("Received data: {}", String::from_utf8_lossy(&buffer[..]));
             }
             Err(e) => {
                 println!("error: {}", e);
