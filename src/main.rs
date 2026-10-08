@@ -1,32 +1,62 @@
-#![allow(unused_imports)]
+use std::io::{ErrorKind, Read, Write};
 use std::net::TcpListener;
-// read/write TCP stream
-use std::io::{Read, Write};
+use std::os::fd::AsRawFd;
 
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    for stream in listener.incoming() {
-        match stream {
-            // mut to change stream
-            Ok(mut stream) => {
-                let mut buffer = [0u8; 1024];
-                loop {
-                    let n = stream.read(&mut buffer).unwrap();
-                    // no data coming in
-                    if n == 0 {
-                        break; // end of stream
+    listener.set_nonblocking(true).unwrap();
+    let mut clients = Vec::new();
+
+    loop {
+        let mut fds = vec![libc::pollfd {
+            fd: listener.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        }];
+        for client in &clients {
+            fds.push(libc::pollfd {
+                fd: client.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            });
+        }
+
+        unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1); }
+
+        if fds[0].revents & libc::POLLIN != 0 {
+            loop {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        stream.set_nonblocking(true).unwrap();
+                        clients.push(stream);
                     }
-                    // write response
-                    stream.write_all(b"+PONG\r\n").unwrap();
-                    println!("Received data: {}", String::from_utf8_lossy(&buffer[..]));
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => break,
+                    Err(e) => {
+                        println!("error: {e}");
+                        break;
+                    }
                 }
             }
-            Err(e) => {
-                println!("error: {}", e);
+        }
+
+        let mut alive = Vec::new();
+        for (i, mut client) in clients.into_iter().enumerate() {
+            let ready = fds[i + 1].revents & (libc::POLLIN | libc::POLLHUP) != 0;
+            if !ready {
+                alive.push(client);
+                continue;
+            }
+            let mut buffer = [0u8; 1024];
+            match client.read(&mut buffer) {
+                Ok(0) => {} // drop it: peer closed
+                Ok(_) => {
+                    client.write_all(b"+PONG\r\n").unwrap();
+                    alive.push(client);
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => alive.push(client),
+                Err(e) => println!("error: {e}"),
             }
         }
+        clients = alive;
     }
 }
