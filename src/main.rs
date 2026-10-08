@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use std::net::TcpListener;
 // write to TCP stream
-use std::io::write;
+use std::io::Write;
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -11,7 +11,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                stream.write_all(b"+PONG\r\n");
+                stream.write_all("+PONG\r\n");
             }
             Err(e) => {
                 println!("error: {}", e);
