@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use std::net::TcpListener;
 // read/write TCP stream
-use std::io::{Read, Write;};
+use std::io::{Read, Write};
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -21,8 +21,8 @@ fn main() {
                     }
                     // write response
                     stream.write_all(b"+PONG\r\n").unwrap();
+                    println!("Received data: {}", String::from_utf8_lossy(&buffer[..]));
                 }
-                println!("Received data: {}", String::from_utf8_lossy(&buffer[..]));
             }
             Err(e) => {
                 println!("error: {}", e);
