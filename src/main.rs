@@ -1,11 +1,11 @@
 use std::io::{ErrorKind, Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::os::fd::AsRawFd;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
     listener.set_nonblocking(true).unwrap();
-    let mut clients = Vec::new();
+    let mut clients: Vec<TcpStream> = Vec::new();
 
     loop {
         let mut fds = vec![libc::pollfd {
@@ -23,7 +23,7 @@ fn main() {
 
         unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1); }
 
-        if fds[0].revents & libc::POLLIN != 0 {
+        if (fds[0].revents & libc::POLLIN) != 0 {
             loop {
                 match listener.accept() {
                     Ok((stream, _)) => {
@@ -41,7 +41,7 @@ fn main() {
 
         let mut alive = Vec::new();
         for (i, mut client) in clients.into_iter().enumerate() {
-            let ready = fds[i + 1].revents & (libc::POLLIN | libc::POLLHUP) != 0;
+            let ready = (fds[i + 1].revents & (libc::POLLIN | libc::POLLHUP)) != 0;
             if !ready {
                 alive.push(client);
                 continue;
