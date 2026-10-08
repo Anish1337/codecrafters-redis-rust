@@ -23,6 +23,9 @@ fn main() {
 
         unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1); }
 
+        // Clients accepted below were not in this poll, so fds has no slot for them yet.
+        let polled = clients.len();
+
         if (fds[0].revents & libc::POLLIN) != 0 {
             loop {
                 match listener.accept() {
@@ -41,6 +44,10 @@ fn main() {
 
         let mut alive = Vec::new();
         for (i, mut client) in clients.into_iter().enumerate() {
+            if i >= polled {
+                alive.push(client);
+                continue;
+            }
             let ready = (fds[i + 1].revents & (libc::POLLIN | libc::POLLHUP)) != 0;
             if !ready {
                 alive.push(client);
